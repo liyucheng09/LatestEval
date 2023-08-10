@@ -2,14 +2,62 @@ import requests
 import mwparserfromhell
 import json
 import os
-from lyc.utils import self_info
 from transformers import LlamaForCausalLM, LlamaTokenizerFast
 import sys
 import torch
 from tqdm import tqdm
 import traceback
+from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 
 WIKI_API_ENDPOINT = "https://en.wikipedia.org/w/api.php"
+
+def self_info(text, model, tokenizer, merge = False):
+    def merge_sub_tokens(log_probs, word_ids):
+        # merge log probs of sub_tokens
+        merged_log_probs = []
+        current_word_id = None
+        current_word_log_prob = None
+        counter = 1
+
+        for log_prob, word_id in zip(log_probs, word_ids):
+            if word_id is not None:
+                if current_word_id != word_id:
+                    if current_word_id is not None:
+                        merged_log_probs.extend([current_word_log_prob] * counter)
+                    counter = 1
+                    current_word_id = word_id
+                    current_word_log_prob = log_prob
+                else:
+                    counter += 1
+                    current_word_log_prob = current_word_log_prob + log_prob
+
+        if current_word_id is not None:
+            merged_log_probs.extend([current_word_log_prob] * counter)
+
+        return merged_log_probs
+
+    # this function is used to get the self-information of a text
+    # the model should be a causal language model, e.g. GPT2LMHeadModel
+
+    # tokenize the text
+    text = f"{tokenizer.bos_token}{text}"
+    encoding = tokenizer(text, return_tensors="pt")
+    encoding = encoding.to(model.device)
+
+    # get the logits
+    with torch.no_grad():
+        logits = model(**encoding).logits
+        probs = torch.softmax(logits, dim=-1)
+        info = -torch.log(probs)
+
+    input_ids = encoding['input_ids']
+    input_ids_expaned = input_ids[:, 1:].unsqueeze(-1)
+    info = info[:, :-1].gather(-1, input_ids_expaned).squeeze(-1).squeeze(0).tolist()
+
+    tokens = [tokenizer.decode(token_) for token_ in input_ids.squeeze().tolist()[1:]]
+    if merge:
+        info = merge_sub_tokens(info, encoding.word_ids()[1:])
+    return tokens, info
 
 def fetch_recent_changes(from_date, to_date = '2023-08-01T00:00:00'):
     params = {
@@ -72,7 +120,7 @@ def parse_to_plain_text(wikitext):
     parsed = mwparserfromhell.parse(wikitext)
     return parsed.strip_code()
 
-def select_token_window(text, token_count=1000):
+def select_token_window(text, token_count=800):
     tokens = text.split()
     if len(tokens) <= token_count:
         return text
@@ -84,6 +132,7 @@ def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
     if not os.path.exists(recent_wiki_path):
         recent_titles = fetch_recent_changes("2023-07-01T00:00:00Z")
         recent_contents = [fetch_content(title) for title in tqdm(recent_titles)]
+        recent_contents = [content for content in recent_contents if content is not None]
 
         data_to_save = {title: content for title, content in zip(recent_titles, recent_contents)}
         with open(recent_wiki_path, 'w') as file:
@@ -93,6 +142,8 @@ def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
             data_to_save = json.load(file)
         recent_titles = list(data_to_save.keys())
         recent_contents = list(data_to_save.values())
+        recent_contents = [content for content in recent_contents if content is not None]
+
 
     # 2. Fetch a historical version of a specific title from July 2022.
     historical_wiki_path = os.path.join(cache_dir, 'historical_wiki_pages.json')
@@ -100,6 +151,7 @@ def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
         with open(os.path.join(cache_dir, 'data/squad_wiki_title.text')) as f:
             titles = [line.strip() for line in f.readlines()]
         historical_contents = [fetch_content(title, "2022-07-01T00:00:00Z") for title in tqdm(titles)]
+        historical_contents = [content for content in historical_contents if content is not None]
         historical_to_save = {title: content for title, content in zip(titles, historical_contents)}
         with open(historical_wiki_path, 'w') as file:
             json.dump(historical_to_save, file, ensure_ascii=False, indent=4)
@@ -108,6 +160,7 @@ def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
             historical_to_save = json.load(file)
         historical_titles = list(historical_to_save.keys())
         historical_contents = list(historical_to_save.values())
+        historical_contents = [content for content in historical_contents if content is not None]
 
     # 3. Parse the content to plain text.
     plain_texts_recent = [parse_to_plain_text(content) for content in recent_contents]
@@ -122,24 +175,28 @@ def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
 if __name__ == "__main__":
     cwd, model_name = sys.argv[1:]
     recent_snippets, historical_snippets = fetch_latest_and_historical_wiki_pages(cache_dir=cwd)
+    print(f'Fetched {len(recent_snippets)} recent snippets and {len(historical_snippets)} historical snippets.')
+    print('recent_snippet example:\n----\n', recent_snippets[0])
+    print('historical_snippet example:\n----\n', historical_snippets[0])
     
-    recent_snippets = recent_snippets[:10]
-    historical_snippets = historical_snippets[:10]
-    model = LlamaForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map='auto')
+    recent_snippets = recent_snippets[:120]
+    historical_snippets = historical_snippets[:120]
+    if 'GPTQ' in model_name:
+        model = AutoGPTQForCausalLM.from_quantized(model_name, device = 'cuda:0', use_safetensors = True)
+    else:
+        model = LlamaForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map='auto')
     tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
 
     recent_info = []
     for recent in recent_snippets:
         tokens, info = self_info(recent, model, tokenizer)
-        print(recent, info)
-        recent_info.append(sum(info))
+        recent_info.append(sum(info)/len(info))
     
     historical_info = []
     for historical in historical_snippets:
         tokens, info = self_info(historical, model, tokenizer)
-        print(historical, info)
-        historical_info.append(sum(info))
+        historical_info.append(sum(info)/len(info))
     
     print('=====================')
     print(f'Model: {model_name}')
-    print(f'Average self-info of recent snippets: {sum(recent_info)}, Average self-info of historical snippets: {sum(historical_info)}')
+    print(f'Average self-info of recent snippets: {sum(recent_info)/len(recent_info)}, Average self-info of historical snippets: {sum(historical_info)/len(historical_info)}')

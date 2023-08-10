@@ -5,3 +5,6 @@ eval/saves/*.txt
 __pycache__/
 .vscode/
 data/*.json
+*.log
+*.out
+*.error
