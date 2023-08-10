@@ -8,6 +8,8 @@ import torch
 from tqdm import tqdm
 import traceback
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+import datasets
+import numpy as np
 
 WIKI_API_ENDPOINT = "https://en.wikipedia.org/w/api.php"
 
@@ -120,11 +122,13 @@ def parse_to_plain_text(wikitext):
     parsed = mwparserfromhell.parse(wikitext)
     return parsed.strip_code()
 
-def select_token_window(text, token_count=800):
+def select_token_window(text, token_count=400):
     tokens = text.split()
     if len(tokens) <= token_count:
         return text
-    return ' '.join(tokens[:token_count])
+    ramdom_start = np.random.randint(0, len(tokens) - token_count)
+    tokens = tokens[ramdom_start:ramdom_start + token_count]
+    return ' '.join(tokens)
 
 def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
     # 1. Fetch the latest created pages from July 2023 and their content.
@@ -172,31 +176,56 @@ def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
 
     return selected_windows_recent, selected_windows_historical
 
+def prepare_comparing_data(datasets_and_texts_col, num_samples=200):
+    # datasets_and_texts is a dict of list {dataset_name: col_name}
+
+    datasets_and_texts = {}
+    for dataset_name, col_name in datasets_and_texts_col.items():
+        if dataset_name in ['quac', 'squad_v2', 'boolq']:
+            ds = datasets.load_dataset(dataset_name, split='validation')
+        elif 'RealTimeData' in dataset_name:
+            ds = datasets.load_dataset(dataset_name, split='train')
+        ds = ds[col_name][:num_samples]
+
+        datasets_and_texts[dataset_name + '_200_words'] = [select_token_window(text, token_count=200) for text in ds]
+        datasets_and_texts[dataset_name + '_300_words'] = [select_token_window(text, token_count=300) for text in ds]
+    
+    return datasets_and_texts
+
 if __name__ == "__main__":
     cwd, model_name = sys.argv[1:]
-    recent_snippets, historical_snippets = fetch_latest_and_historical_wiki_pages(cache_dir=cwd)
-    print(f'Fetched {len(recent_snippets)} recent snippets and {len(historical_snippets)} historical snippets.')
-    print('recent_snippet example:\n----\n', recent_snippets[0])
-    print('historical_snippet example:\n----\n', historical_snippets[0])
-    
-    recent_snippets = recent_snippets[:120]
-    historical_snippets = historical_snippets[:120]
+
+    # recent_snippets, historical_snippets = fetch_latest_and_historical_wiki_pages(cache_dir=cwd)
+    # recent_snippets = recent_snippets[:120]
+    # historical_snippets = historical_snippets[:120]
+    # datasets_and_texts = {
+    #     'recent': recent_snippets,
+    #     'historical': historical_snippets
+    # }
+
+    datasets_and_texts = prepare_comparing_data({
+        'quac': 'context',
+        'boolq': 'passage',
+        'squad_v2': 'context',
+        'RealTimeData/arxiv_july_week1_2023': 'text',
+        'RealTimeData/github_july_week1_2023': 'readme',
+        'RealTimeData/bbc_news_week1_july_2023': 'content',
+    })
+
     if 'GPTQ' in model_name:
         model = AutoGPTQForCausalLM.from_quantized(model_name, device = 'cuda:0', use_safetensors = True)
     else:
         model = LlamaForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map='auto')
     tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
 
-    recent_info = []
-    for recent in recent_snippets:
-        tokens, info = self_info(recent, model, tokenizer)
-        recent_info.append(sum(info)/len(info))
-    
-    historical_info = []
-    for historical in historical_snippets:
-        tokens, info = self_info(historical, model, tokenizer)
-        historical_info.append(sum(info)/len(info))
-    
     print('=====================')
     print(f'Model: {model_name}')
-    print(f'Average self-info of recent snippets: {sum(recent_info)/len(recent_info)}, Average self-info of historical snippets: {sum(historical_info)/len(historical_info)}')
+
+    for dataset_name, texts in datasets_and_texts.items():
+        print(f'=====================')
+        print(f'Dataset: {dataset_name}')
+        infos = []
+        for texts in tqdm(texts):
+            tokens, info = self_info(texts, model, tokenizer)
+            infos.append(sum(info)/len(info))
+        print(f'Average self-info: {sum(infos)/len(infos)}')
