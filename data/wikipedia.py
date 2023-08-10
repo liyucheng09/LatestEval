@@ -78,31 +78,33 @@ def select_token_window(text, token_count=1000):
         return text
     return ' '.join(tokens[:token_count])
 
-def fetch_latest_and_historical_wiki_pages():
+def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
     # 1. Fetch the latest created pages from July 2023 and their content.
-    if not os.path.exists('recent_wiki_pages.json'):
+    recent_wiki_path = os.path.join(cache_dir, 'recent_wiki_pages.json')
+    if not os.path.exists(recent_wiki_path):
         recent_titles = fetch_recent_changes("2023-07-01T00:00:00Z")
         recent_contents = [fetch_content(title) for title in tqdm(recent_titles)]
 
         data_to_save = {title: content for title, content in zip(recent_titles, recent_contents)}
-        with open('recent_wiki_pages.json', 'w') as file:
+        with open(recent_wiki_path, 'w') as file:
             json.dump(data_to_save, file, ensure_ascii=False, indent=4)
     else:
-        with open('recent_wiki_pages.json') as file:
+        with open(recent_wiki_path) as file:
             data_to_save = json.load(file)
         recent_titles = list(data_to_save.keys())
         recent_contents = list(data_to_save.values())
 
     # 2. Fetch a historical version of a specific title from July 2022.
-    if not os.path.exists('historical_wiki_pages.json'):
-        with open('data/squad_wiki_title.text') as f:
+    historical_wiki_path = os.path.join(cache_dir, 'historical_wiki_pages.json')
+    if not os.path.exists(historical_wiki_path):
+        with open(os.path.join(cache_dir, 'data/squad_wiki_title.text')) as f:
             titles = [line.strip() for line in f.readlines()]
         historical_contents = [fetch_content(title, "2022-07-01T00:00:00Z") for title in tqdm(titles)]
         historical_to_save = {title: content for title, content in zip(titles, historical_contents)}
-        with open('historical_wiki_pages.json', 'w') as file:
+        with open(historical_wiki_path, 'w') as file:
             json.dump(historical_to_save, file, ensure_ascii=False, indent=4)
     else:
-        with open('historical_wiki_pages.json') as file:
+        with open(historical_wiki_path) as file:
             historical_to_save = json.load(file)
         historical_titles = list(historical_to_save.keys())
         historical_contents = list(historical_to_save.values())
@@ -118,9 +120,11 @@ def fetch_latest_and_historical_wiki_pages():
     return selected_windows_recent, selected_windows_historical
 
 if __name__ == "__main__":
-    model_name = sys.argv[1:]
-    recent_snippets, historical_snippets = fetch_latest_and_historical_wiki_pages()
+    cwd, model_name = sys.argv[1:]
+    recent_snippets, historical_snippets = fetch_latest_and_historical_wiki_pages(cache_dir=cwd)
     
+    recent_snippets = recent_snippets[:10]
+    historical_snippets = historical_snippets[:10]
     model = LlamaForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map='auto')
     tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
 

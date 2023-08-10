@@ -5,4 +5,3 @@ eval/saves/*.txt
 __pycache__/
 .vscode/
 data/*.json
-data/squad_wiki_title.text
