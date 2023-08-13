@@ -2,7 +2,7 @@ import requests
 import mwparserfromhell
 import json
 import os
-from transformers import LlamaForCausalLM, LlamaTokenizerFast
+from transformers import LlamaForCausalLM, LlamaTokenizerFast, AutoModelForCausalLM, AutoTokenizer, OPTForCausalLM
 import sys
 import torch
 from tqdm import tqdm
@@ -10,6 +10,7 @@ import traceback
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 import datasets
 import numpy as np
+import time
 
 WIKI_API_ENDPOINT = "https://en.wikipedia.org/w/api.php"
 
@@ -43,7 +44,7 @@ def self_info(text, model, tokenizer, merge = False):
 
     # tokenize the text
     text = f"{tokenizer.bos_token}{text}"
-    encoding = tokenizer(text, return_tensors="pt")
+    encoding = tokenizer(text, return_tensors="pt", max_length=model.config.max_position_embeddings, truncation=True)
     encoding = encoding.to(model.device)
 
     # get the logits
@@ -167,8 +168,20 @@ def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
         historical_contents = [content for content in historical_contents if content is not None]
 
     # 3. Parse the content to plain text.
-    plain_texts_recent = [parse_to_plain_text(content) for content in recent_contents]
-    plain_texts_historical = [parse_to_plain_text(content) for content in historical_contents]
+    recent_plain_text_path = os.path.join(cache_dir, 'recent_plain_text.json')
+    historical_plain_text_path = os.path.join(cache_dir, 'historical_plain_text.json')
+    if not os.path.exists(recent_plain_text_path):
+        plain_texts_recent = [parse_to_plain_text(content) for content in recent_contents]
+        plain_texts_historical = [parse_to_plain_text(content) for content in historical_contents]
+        with open(recent_plain_text_path, 'w') as file:
+            json.dump(plain_texts_recent, file, ensure_ascii=False, indent=4)
+        with open(historical_plain_text_path, 'w') as file:
+            json.dump(plain_texts_historical, file, ensure_ascii=False, indent=4)
+    else:
+        with open(recent_plain_text_path) as file:
+            plain_texts_recent = json.load(file)
+        with open(historical_plain_text_path) as file:
+            plain_texts_historical = json.load(file)
 
     # 4. Select a 1000-token window from the text.
     selected_windows_recent = [select_token_window(text) for text in plain_texts_recent]
@@ -187,36 +200,46 @@ def prepare_comparing_data(datasets_and_texts_col, num_samples=200):
             ds = datasets.load_dataset(dataset_name, split='train')
         ds = ds[col_name][:num_samples]
 
-        datasets_and_texts[dataset_name + '_200_words'] = [select_token_window(text, token_count=200) for text in ds]
         datasets_and_texts[dataset_name + '_300_words'] = [select_token_window(text, token_count=300) for text in ds]
+        datasets_and_texts[dataset_name + '_200_words'] = [select_token_window(text, token_count=200) for text in ds]
     
     return datasets_and_texts
 
 if __name__ == "__main__":
     cwd, model_name = sys.argv[1:]
 
-    # recent_snippets, historical_snippets = fetch_latest_and_historical_wiki_pages(cache_dir=cwd)
-    # recent_snippets = recent_snippets[:120]
-    # historical_snippets = historical_snippets[:120]
-    # datasets_and_texts = {
-    #     'recent': recent_snippets,
-    #     'historical': historical_snippets
-    # }
-
+    recent_snippets, historical_snippets = fetch_latest_and_historical_wiki_pages(cache_dir=cwd)
+    recent_snippets = recent_snippets[:120]
+    historical_snippets = historical_snippets[:120]
+    wikipedia_and_texts = {
+        'wiki_recent': recent_snippets,
+        'wiki_historical': historical_snippets
+    }
     datasets_and_texts = prepare_comparing_data({
+        'RealTimeData/github_july_week1_2023': 'readme',
         'quac': 'context',
         'boolq': 'passage',
         'squad_v2': 'context',
         'RealTimeData/arxiv_july_week1_2023': 'text',
-        'RealTimeData/github_july_week1_2023': 'readme',
         'RealTimeData/bbc_news_week1_july_2023': 'content',
     })
-
     if 'GPTQ' in model_name:
-        model = AutoGPTQForCausalLM.from_quantized(model_name, device = 'cuda:0', use_safetensors = True)
-    else:
+        # only llama-30b use gptq
+        model = AutoGPTQForCausalLM.from_quantized(model_name, device = 'cuda:0', use_safetensors = True, disable_exllama=True if '30b' in model_name else False)
+        tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
+    elif 'llama' in model_name.lower():
         model = LlamaForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map='auto')
-    tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
+        tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
+    elif 'opt' in model_name.lower():
+        model = OPTForCausalLM.from_pretrained(model_name, device_map='auto')
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        # datasets_and_texts = prepare_comparing_data({
+        #     'RealTimeData/News_Seq_2021': 'maintext',
+        #     'RealTimeData/News_August_2023': 'maintext',
+        # })
+    
+    datasets_and_texts.update(wikipedia_and_texts)
 
     print('=====================')
     print(f'Model: {model_name}')
@@ -226,6 +249,12 @@ if __name__ == "__main__":
         print(f'Dataset: {dataset_name}')
         infos = []
         for texts in tqdm(texts):
-            tokens, info = self_info(texts, model, tokenizer)
+            try:
+                tokens, info = self_info(texts, model, tokenizer)
+            except:
+                traceback.print_exc()
+                time.sleep(10)
+                continue
+            # print('text:', texts, '\ninfo:', info)
             infos.append(sum(info)/len(info))
         print(f'Average self-info: {sum(infos)/len(infos)}')
