@@ -1,0 +1,7 @@
+arxiv
+pylatexenc
+datasets
+bs4
+goose3
+configobj
+mwparserfromhell

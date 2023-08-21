@@ -1,0 +1,107 @@
+name: Weekly Downloader
+
+on:
+  schedule:
+    # This cron job initiates the action at 00:00 every Sunday
+    - cron: '0 0 * * 0'
+
+jobs:
+  wiki_downloader:
+    runs-on: ubuntu-latest
+
+    # Define environment variables for all steps in this job
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      Github_Token: ${{ secrets.Github_Token }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'  # Choose your desired Python version
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run script
+      run: python wikitext_downloader.py
+  
+  arxiv_downloader:
+    runs-on: ubuntu-latest
+
+    # Define environment variables for all steps in this job
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      Github_Token: ${{ secrets.Github_Token }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'  # Choose your desired Python version
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run script
+      run: python arxiv_downloader.py
+    
+  bbc_downloader:
+    runs-on: ubuntu-latest
+
+    # Define environment variables for all steps in this job
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      Github_Token: ${{ secrets.Github_Token }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'  # Choose your desired Python version
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run script
+      run: python bbc_downloader.py
+  
+  github_downloader:
+    runs-on: ubuntu-latest
+
+    # Define environment variables for all steps in this job
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      Github_Token: ${{ secrets.Github_Token }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'  # Choose your desired Python version
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run script
+      run: python github_downloader.py
