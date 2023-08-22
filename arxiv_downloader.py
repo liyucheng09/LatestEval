@@ -232,9 +232,13 @@ if __name__ == '__main__':
     text = f"""
 # Latest arXiv
 
-This dataset contains the latest arXiv papers submitted from {start_time.isoformat()} to {today.isoformat()}.
+You could always access the latest arXiv papers via this dataset.
 
-The data collection is conducted on {today.isoformat()}.
+We update the dataset weekly, on every Sunday. So the dataset always provides the latest arXiv papers created in the past week.
+
+The current dataset on main branch contains the latest arXiv papers submitted from {start_time.isoformat()} to {today.isoformat()}.
+
+The data collection was conducted on {today.isoformat()}.
 
 Use the dataset via:
 ```
@@ -243,12 +247,14 @@ ds = datasets.load_dataset('RealTimeData/arxiv_latest')
 
 # Previsou versions
 
-You could access a historical slice from different branches.
+You could access previous versions by requesting different branches.
 
 For example, you could find the 2023-08-20 version via:
 ```
 ds = datasets.load_dataset('RealTimeData/arxiv_latest', revision = '2023-08-20')
 ```
+
+Check all available versions by clicking the "Files and versions" button on the top bar.
 """
     card = RepoCard(text)
     card.push_to_hub('RealTimeData/arxiv_latest', repo_type='dataset', token=hf_token)

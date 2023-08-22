@@ -85,7 +85,11 @@ ds.push_to_hub("RealTimeData/github_latest", token=hf_token, branch=start_date_s
 text = f"""
 # Latest GitHub Repositories
 
-This dataset contains the latest Github Repos submitted from {start_date_str} to {end_date_str}.
+You could always access the latest Github repos via this dataset.
+
+We update the dataset weekly, on every Sunday. So the dataset always provides the latest Github repos from the last week.
+
+The current dataset on main branch contains the latest Github Repos submitted from {start_date_str} to {end_date_str}.
 
 The data collection is conducted on {today.date.isoformat()}.
 
@@ -96,12 +100,14 @@ ds = datasets.load_dataset('RealTimeData/github_latest')
 
 # Previsou versions
 
-You could access a historical slice with our branches.
+You could access previous versions by requesting different branches.
 
 For example, you could find the 2023-08-06 version via:
 ```
 ds = datasets.load_dataset('RealTimeData/github_latest', revision = '2023-08-06')
 ```
+
+Check all available versions by clicking the "Files and versions" button on the top bar.
 """
 card = RepoCard(text)
 card.push_to_hub('RealTimeData/github_latest', repo_type='dataset', token=hf_token)

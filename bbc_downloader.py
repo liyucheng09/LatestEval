@@ -542,7 +542,7 @@ if __name__ == '__main__':
 
     today = datetime.date.today()
     today_str = today.strftime('%Y-%m-%d')
-    two_weeks_ago = today - datetime.timedelta(days=14)
+    two_weeks_ago = today - datetime.timedelta(days=7)
     two_weeks_ago_str = two_weeks_ago.strftime('%Y-%m-%d')
 
     config = DatasetConfiguration()
@@ -588,7 +588,11 @@ if __name__ == '__main__':
     text = f"""
 # Latest BBC News
 
-This dataset contains the latest BBC News articles submitted from {two_weeks_ago.isoformat()} to {today.isoformat()}.
+You could always access the latest BBC News articles via this dataset.
+
+We update the dataset weekly, on every Sunday. So the dataset always provides the latest BBC News article from the last week.
+
+The current dataset on main branch contains the latest BBC News articles submitted from {two_weeks_ago.isoformat()} to {today.isoformat()}.
 
 The data collection is conducted on {today.isoformat()}.
 
@@ -599,12 +603,14 @@ ds = datasets.load_dataset('RealTimeData/bbc_latest')
 
 # Previsou versions
 
-You could access a historical slice from different branches.
+You could access previous versions by requesting different branches.
 
 For example, you could find the 2023-08-20 version via:
 ```
 ds = datasets.load_dataset('RealTimeData/bbc_latest', revision = '2023-08-20')
 ```
+
+Check all available versions by clicking the "Files and versions" button on the top bar.
 """
     card = RepoCard(text)
     card.push_to_hub('RealTimeData/bbc_latest', repo_type='dataset', token=hf_token)

@@ -112,7 +112,11 @@ if __name__ == "__main__":
     text = f"""
 # Latest Wikitext
 
-This dataset contains the latest wikipedia texts created from {two_week_ago.date().isoformat()} to {one_week_ago.date().isoformat()}.
+You could always access the latest Wikipedia texts via this dataset.
+
+We update the dataset weekly, on every Sunday. So the dataset always provides the latest Wikipedia texts from the last week.
+
+The current dataset on main branch contains the latest wikipedia texts created from {two_week_ago.date().isoformat()} to {one_week_ago.date().isoformat()}.
 
 The data collection is conducted on {today.date().isoformat()}.
 
@@ -123,12 +127,14 @@ ds = datasets.load_dataset('RealTimeData/wikitext_latest')
 
 # Previsou versions
 
-You could access a historical slice with our branches.
+You could access previous versions by requesting different branches.
 
 For example, you could find the 2023-08-12 version via:
 ```
 ds = datasets.load_dataset('RealTimeData/wikitext_latest', revision = '2023-08-12')
 ```
+
+Check all available versions by clicking the "Files and versions" button on the top bar.
 """
     card = RepoCard(text)
     card.push_to_hub('RealTimeData/wikitext_latest', repo_type='dataset', token=hf_token)
