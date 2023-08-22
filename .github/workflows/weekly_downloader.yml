@@ -12,7 +12,7 @@ jobs:
     # Define environment variables for all steps in this job
     env:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      Github_Token: ${{ secrets.Github_Token }}
+      Github_Token: ${{ secrets.gh_token }}
 
     steps:
     - name: Checkout repository
