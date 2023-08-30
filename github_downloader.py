@@ -62,7 +62,7 @@ while True:
             # print(f"Repository {repo_name} README content:")
             # print(readme_content)
             with open(f"{out_path}/{full_name.replace('/', '_')}_README.md", 'w') as f:
-                json.dump({'full_name': full_name, 'url': url, 'description': description, 'readme': readme_content, 'stars': stars, 'forks': forks}, f, ensure_ascii=False, indent=4)
+                json.dump({'full_name': full_name, 'url': url, 'description': description, 'readme': readme_content, 'stars': stars, 'forks': forks}, f, ensure_ascii=False)
         else:
             print(f"Repository {repo_name} doesn't have a README.")
         

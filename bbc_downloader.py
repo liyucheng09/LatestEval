@@ -581,7 +581,7 @@ if __name__ == '__main__':
 
     from huggingface_hub import create_branch, create_tag, RepoCard
 
-    create_branch('RealTimeData/bbc_latest', repo_type='dataset', branch=today_str)
+    create_branch('RealTimeData/bbc_latest', repo_type='dataset', branch=today_str, token=hf_token)
     ds.push_to_hub('RealTimeData/bbc_latest', token=hf_token, branch='main')
     ds.push_to_hub('RealTimeData/bbc_latest', token=hf_token, branch=today_str)
 

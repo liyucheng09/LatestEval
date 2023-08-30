@@ -158,13 +158,9 @@ class Worker(Thread):
                 if 'main.tex' in tex_files: tex_files = ['main.tex']
                 else:
                     self.logger.info(f'------ Found multiple tex files: {tex_files}')
-                    shutil.rmtree(f'./{paper_id}')
-                    os.remove(f'{paper_id}.arxiv_source')
                     return
             elif len(tex_files) == 0:
                 self.logger.info(f'------ Found no tex files')
-                shutil.rmtree(f'./{paper_id}')
-                os.remove(f'{paper_id}.arxiv_source')
                 return
             tex_file = tex_files[0]
             with open(f'./{paper_id}/{tex_file}', 'r', encoding='utf-8', errors='ignore') as f:
