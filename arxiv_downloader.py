@@ -132,7 +132,7 @@ class Worker(Thread):
             'primary_category': result.primary_category,
             'categories': result.categories
         }
-        self.logger.info(f'------ META {meta_data}')
+        # self.logger.info(f'------ META {meta_data}')
         paper_id = result.entry_id.split('/')[-1]
         try:
             result.download_source('./', filename = f'{paper_id}.arxiv_source')
@@ -206,7 +206,7 @@ if __name__ == '__main__':
     )
 
     q = Queue()
-    num_threads = 4
+    num_threads = 5
     
     for i in range(num_threads):
         worker = Worker(q, i, text_save_dir,)

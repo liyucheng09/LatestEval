@@ -91,7 +91,7 @@ We update the dataset weekly, on every Sunday. So the dataset always provides th
 
 The current dataset on main branch contains the latest Github Repos submitted from {start_date_str} to {end_date_str}.
 
-The data collection is conducted on {today.date.isoformat()}.
+The data collection is conducted on {today.date().isoformat()}.
 
 Use the dataset via:
 ```
