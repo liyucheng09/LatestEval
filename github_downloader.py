@@ -34,7 +34,8 @@ def save_checkpoint(page, last_repo_index):
     with open(f'{start_date_str}_checkpoint.json', 'w') as f:
         json.dump({'page': page, 'last_repo_index': last_repo_index}, f)
 
-page, last_repo_index = load_checkpoint()
+page, last_repo_index = 1, 0
+# page, last_repo_index = load_checkpoint()
 
 while True:
     response = requests.get(f'https://api.github.com/search/repositories?q=created:{start_date_str}..{end_date_str}&sort=stars&order=desc&per_page=100&page={page}', headers=headers)
@@ -78,7 +79,10 @@ from glob import glob
 files = glob(f'{out_path}/*.md')
 ds = datasets.load_dataset('json', data_files = files, split = 'train')
 
-create_branch("RealTimeData/github_latest", branch=start_date_str, repo_type="dataset", token=hf_token)
+try:
+    create_branch("RealTimeData/github_latest", branch=start_date_str, repo_type="dataset", token=hf_token)
+except:
+    traceback.print_exc()
 ds.push_to_hub("RealTimeData/github_latest", token=hf_token, branch='main')
 ds.push_to_hub("RealTimeData/github_latest", token=hf_token, branch=start_date_str)
 
