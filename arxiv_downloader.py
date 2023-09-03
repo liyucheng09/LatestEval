@@ -15,6 +15,7 @@ import json
 from glob import glob
 from huggingface_hub import create_branch, create_tag, RepoCard
 import datasets
+import sys
 
 def filter_element(context, exclude_elements = []):
     
@@ -186,6 +187,8 @@ class Worker(Thread):
 
 
 if __name__ == '__main__':
+    offset, = sys.argv[1:]
+    offset = int(offset)
 
     hf_token = os.environ['HF_TOKEN']
 
@@ -213,7 +216,7 @@ if __name__ == '__main__':
         worker.daemon = True
         worker.start()
 
-    for index, result in enumerate(search.results()):
+    for index, result in enumerate(search.results(offset=offset)):
         q.put((index, result))
 
     q.join()
