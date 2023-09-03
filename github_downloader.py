@@ -67,16 +67,17 @@ while True:
         else:
             print(f"Repository {repo_name} doesn't have a README.")
         
-        last_repo_index += 1
-        save_checkpoint(page, last_repo_index)
+    #     last_repo_index += 1
+    #     save_checkpoint(page, last_repo_index)
 
-    page += 1
-    last_repo_index = 0
-    save_checkpoint(page, last_repo_index)
+    # page += 1
+    # last_repo_index = 0
+    # save_checkpoint(page, last_repo_index)
 
 import datasets
 from glob import glob
 files = glob(f'{out_path}/*.md')
+print(f"Found {len(files)} files.")
 ds = datasets.load_dataset('json', data_files = files, split = 'train')
 
 try:
