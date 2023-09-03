@@ -36,6 +36,7 @@ def save_checkpoint(page, last_repo_index):
 
 page, last_repo_index = 1, 0
 # page, last_repo_index = load_checkpoint()
+all_readmes = []
 
 while True:
     response = requests.get(f'https://api.github.com/search/repositories?q=created:{start_date_str}..{end_date_str}&sort=stars&order=desc&per_page=100&page={page}', headers=headers)
@@ -63,7 +64,9 @@ while True:
             # print(f"Repository {repo_name} README content:")
             # print(readme_content)
             with open(f"{out_path}/{full_name.replace('/', '_')}_README.md", 'w') as f:
-                json.dump({'full_name': full_name, 'url': url, 'description': description, 'readme': readme_content, 'stars': stars, 'forks': forks}, f, ensure_ascii=False)
+                readme_obj = {'full_name': full_name, 'url': url, 'description': description, 'readme': readme_content, 'stars': stars, 'forks': forks}
+                all_readmes.append(readme_obj)
+                json.dump(readme_obj, f, ensure_ascii=False)
         else:
             print(f"Repository {repo_name} doesn't have a README.")
         
@@ -75,10 +78,9 @@ while True:
     # save_checkpoint(page, last_repo_index)
 
 import datasets
-from glob import glob
-files = glob(f'{out_path}/*.md')
-print(f"Found {len(files)} files.")
-ds = datasets.load_dataset('json', data_files = files, split = 'train')
+
+all_readmes = { k: [v[k] for v in all_readmes] for k in all_readmes[0].keys() }
+ds = datasets.Dataset.from_dict(all_readmes)
 
 try:
     create_branch("RealTimeData/github_latest", branch=start_date_str, repo_type="dataset", token=hf_token)
