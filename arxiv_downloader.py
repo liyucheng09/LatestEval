@@ -187,9 +187,6 @@ class Worker(Thread):
 
 
 if __name__ == '__main__':
-    offset, = sys.argv[1:]
-    offset = int(offset)
-
     hf_token = os.environ['HF_TOKEN']
 
     today = datetime.date.today()
@@ -205,18 +202,19 @@ if __name__ == '__main__':
     search = arxiv.Search(
         query=f'submittedDate:[{start_time_str} TO {end_time_str}]',
         sort_by = arxiv.SortCriterion.SubmittedDate,
-        sort_order=arxiv.SortOrder.Descending
+        sort_order=arxiv.SortOrder.Descending,
+        max_results=2500
     )
 
     q = Queue()
-    num_threads = 5
+    num_threads = 4
     
     for i in range(num_threads):
         worker = Worker(q, i, text_save_dir,)
         worker.daemon = True
         worker.start()
 
-    for index, result in enumerate(search.results(offset=offset)):
+    for index, result in enumerate(search.results()):
         q.put((index, result))
 
     q.join()

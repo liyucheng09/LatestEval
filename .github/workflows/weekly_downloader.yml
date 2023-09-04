@@ -31,7 +31,7 @@ jobs:
     - name: Run script
       run: python wikitext_downloader.py
   
-  arxiv_downloader_1:
+  arxiv_downloader:
     runs-on: ubuntu-latest
 
     # Define environment variables for all steps in this job
@@ -54,32 +54,7 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run script
-      run: python arxiv_downloader.py 0
-  
-  arxiv_downloader_2:
-    runs-on: ubuntu-latest
-
-    # Define environment variables for all steps in this job
-    env:
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      Github_Token: ${{ secrets.Github_Token }}
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.10'  # Choose your desired Python version
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Run script
-      run: python arxiv_downloader.py 2500
+      run: python arxiv_downloader.py
     
   bbc_downloader:
     runs-on: ubuntu-latest
