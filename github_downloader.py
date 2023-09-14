@@ -5,6 +5,7 @@ import os
 import json
 from tqdm import tqdm
 from huggingface_hub import create_branch, create_tag, RepoCard
+import traceback
 
 github_token = os.environ['Github_Token']
 headers = {'Authorization': f'token {github_token}'}
@@ -70,12 +71,7 @@ while True:
         else:
             print(f"Repository {repo_name} doesn't have a README.")
         
-    #     last_repo_index += 1
-    #     save_checkpoint(page, last_repo_index)
-
-    # page += 1
-    # last_repo_index = 0
-    # save_checkpoint(page, last_repo_index)
+    page += 1
 
 import datasets
 
