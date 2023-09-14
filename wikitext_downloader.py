@@ -21,7 +21,7 @@ def fetch_recent_changes(from_date, to_date = '2023-08-01T00:00:00', limit = 200
         "rcend": from_date,  # ending at the older date
         "rctype": "new",
         "rcnamespace": "0",
-        "rclimit": "80",
+        "rclimit": "500",
         "rcprop": "title|timestamp"
     }
     if continue_token is not None:
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     one_week_ago = today - datetime.timedelta(days=7)
     two_week_ago = today - datetime.timedelta(days=14)
 
-    new_articles = fetch_recent_changes(two_week_ago.isoformat(), one_week_ago.isoformat(), limit=80)
+    new_articles = fetch_recent_changes(two_week_ago.isoformat(), one_week_ago.isoformat(), limit=8000)
     print(f'Num new articles: {len(new_articles)}')
 
     articles = []
