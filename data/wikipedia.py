@@ -7,10 +7,11 @@ import sys
 import torch
 from tqdm import tqdm
 import traceback
-from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+# from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 import datasets
 import numpy as np
 import time
+import openai
 
 WIKI_API_ENDPOINT = "https://en.wikipedia.org/w/api.php"
 
@@ -61,6 +62,34 @@ def self_info(text, model, tokenizer, merge = False):
     if merge:
         info = merge_sub_tokens(info, encoding.word_ids()[1:])
     return tokens, info
+
+def gpt3_self_info(text, num_retry = 5):
+    # text = text[:1000]
+    openai.api_key = os.environ["OPENAI_API_KEY"]
+
+    for _ in range(num_retry):
+        try:
+            r = openai.Completion.create(
+                model="curie",
+                prompt=f"<|endoftext|>{text}",
+                max_tokens=0,
+                temperature=0,
+                echo=True,
+                logprobs=0,
+            )
+            break
+        except Exception as e:
+            print(e)
+            time.sleep(1)
+
+    result = r['choices'][0]
+    tokens, logprobs = result["logprobs"]["tokens"][1:], result["logprobs"]["token_logprobs"][1:]
+
+    assert len(tokens) == len(logprobs), f"Expected {len(tokens)} logprobs, got {len(logprobs)}"
+
+    self_info = [ -logprob for logprob in logprobs]
+    # TODO: deal with the first delimiter
+    return tokens, self_info
 
 def fetch_recent_changes(from_date, to_date = '2023-08-01T00:00:00'):
     params = {
@@ -131,7 +160,7 @@ def select_token_window(text, token_count=400):
     tokens = tokens[ramdom_start:ramdom_start + token_count]
     return ' '.join(tokens)
 
-def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
+def fetch_latest_and_historical_wiki_pages(cache_dir = '', historical_date = '2022-07-01T00:00:00Z', token_count = 300):
     # 1. Fetch the latest created pages from July 2023 and their content.
     recent_wiki_path = os.path.join(cache_dir, 'recent_wiki_pages.json')
     if not os.path.exists(recent_wiki_path):
@@ -149,13 +178,12 @@ def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
         recent_contents = list(data_to_save.values())
         recent_contents = [content for content in recent_contents if content is not None]
 
-
     # 2. Fetch a historical version of a specific title from July 2022.
     historical_wiki_path = os.path.join(cache_dir, 'historical_wiki_pages.json')
     if not os.path.exists(historical_wiki_path):
         with open(os.path.join(cache_dir, 'data/squad_wiki_title.text')) as f:
             titles = [line.strip() for line in f.readlines()]
-        historical_contents = [fetch_content(title, "2022-07-01T00:00:00Z") for title in tqdm(titles)]
+        historical_contents = [fetch_content(title, historical_date) for title in tqdm(titles)]
         historical_contents = [content for content in historical_contents if content is not None]
         historical_to_save = {title: content for title, content in zip(titles, historical_contents)}
         with open(historical_wiki_path, 'w') as file:
@@ -184,12 +212,12 @@ def fetch_latest_and_historical_wiki_pages(cache_dir = ''):
             plain_texts_historical = json.load(file)
 
     # 4. Select a 1000-token window from the text.
-    selected_windows_recent = [select_token_window(text) for text in plain_texts_recent]
-    selected_windows_historical = [select_token_window(text) for text in plain_texts_historical]
+    selected_windows_recent = [select_token_window(text, token_count=token_count) for text in plain_texts_recent]
+    selected_windows_historical = [select_token_window(text, token_count=token_count) for text in plain_texts_historical]
 
     return selected_windows_recent, selected_windows_historical
 
-def prepare_comparing_data(datasets_and_texts_col, num_samples=200):
+def prepare_comparing_data(datasets_and_texts_col, num_samples=200, token_count=300):
     # datasets_and_texts is a dict of list {dataset_name: col_name}
 
     datasets_and_texts = {}
@@ -200,15 +228,17 @@ def prepare_comparing_data(datasets_and_texts_col, num_samples=200):
             ds = datasets.load_dataset(dataset_name, split='train')
         ds = ds[col_name][:num_samples]
 
-        datasets_and_texts[dataset_name + '_300_words'] = [select_token_window(text, token_count=300) for text in ds]
-        datasets_and_texts[dataset_name + '_200_words'] = [select_token_window(text, token_count=200) for text in ds]
+        datasets_and_texts[dataset_name + f'_{token_count}_words'] = [select_token_window(text, token_count=token_count) for text in ds]
+        # datasets_and_texts[dataset_name + '_200_words'] = [select_token_window(text, token_count=200) for text in ds]
     
     return datasets_and_texts
 
 if __name__ == "__main__":
-    cwd, model_name = sys.argv[1:]
+    cwd, model_name, token_count, = sys.argv[1:]
+    token_count = int(token_count)
+    batch_size = 8
 
-    recent_snippets, historical_snippets = fetch_latest_and_historical_wiki_pages(cache_dir=cwd)
+    recent_snippets, historical_snippets = fetch_latest_and_historical_wiki_pages(cache_dir=cwd, token_count=token_count)
     recent_snippets = recent_snippets[:120]
     historical_snippets = historical_snippets[:120]
     wikipedia_and_texts = {
@@ -216,13 +246,13 @@ if __name__ == "__main__":
         'wiki_historical': historical_snippets
     }
     datasets_and_texts = prepare_comparing_data({
-        'RealTimeData/github_july_week1_2023': 'readme',
         'quac': 'context',
         'boolq': 'passage',
         'squad_v2': 'context',
-        'RealTimeData/arxiv_july_week1_2023': 'text',
-        'RealTimeData/bbc_news_week1_july_2023': 'content',
-    })
+        # 'RealTimeData/github_july_week1_2023': 'readme',
+        # 'RealTimeData/arxiv_july_week1_2023': 'text',
+        # 'RealTimeData/bbc_news_week1_july_2023': 'content',
+    }, token_count=token_count, num_samples=120)
     if 'GPTQ' in model_name:
         # only llama-30b use gptq
         model = AutoGPTQForCausalLM.from_quantized(model_name, device = 'cuda:0', use_safetensors = True, disable_exllama=True if '30b' in model_name else False)
@@ -232,6 +262,9 @@ if __name__ == "__main__":
         tokenizer = LlamaTokenizerFast.from_pretrained(model_name)
     elif 'opt' in model_name.lower():
         model = OPTForCausalLM.from_pretrained(model_name, device_map='auto')
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+    elif 'gpt2' == model_name.lower():
+        model = AutoModelForCausalLM.from_pretrained(model_name)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         # datasets_and_texts = prepare_comparing_data({
@@ -248,13 +281,16 @@ if __name__ == "__main__":
         print(f'=====================')
         print(f'Dataset: {dataset_name}')
         infos = []
-        for texts in tqdm(texts):
+        for text in tqdm(texts):
             try:
-                tokens, info = self_info(texts, model, tokenizer)
+                if 'curie' in model_name.lower():
+                    tokens, info = gpt3_self_info(text)
+                else:
+                    tokens, info = self_info(text, model, tokenizer)
             except:
                 traceback.print_exc()
                 time.sleep(10)
                 continue
-            # print('text:', texts, '\ninfo:', info)
+            # print('text:', text, '\ninfo:', info)
             infos.append(sum(info)/len(info))
         print(f'Average self-info: {sum(infos)/len(infos)}')
