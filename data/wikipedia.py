@@ -222,7 +222,7 @@ def prepare_comparing_data(datasets_and_texts_col, num_samples=200, token_count=
 
     datasets_and_texts = {}
     for dataset_name, col_name in datasets_and_texts_col.items():
-        if dataset_name in ['quac', 'squad_v2', 'boolq']:
+        if dataset_name in ['quac', 'squad_v2', 'boolq', 'iohadrubin/mini_xsum', 'liyucheng/trivia_qa_wiki_val']:
             ds = datasets.load_dataset(dataset_name, split='validation')
         elif 'RealTimeData' in dataset_name:
             ds = datasets.load_dataset(dataset_name, split='train')
@@ -246,9 +246,13 @@ if __name__ == "__main__":
         'wiki_historical': historical_snippets
     }
     datasets_and_texts = prepare_comparing_data({
-        'quac': 'context',
-        'boolq': 'passage',
-        'squad_v2': 'context',
+        # 'liyucheng/trivia_qa_wiki_val': 'wiki_context_sample'
+        'RealTimeData/bbc_latest': 'content',
+        'RealTimeData/bbc_2017': 'content',
+        'iohadrubin/mini_xsum': 'document'
+        # 'quac': 'context',
+        # 'boolq': 'passage',
+        # 'squad_v2': 'context',
         # 'RealTimeData/github_july_week1_2023': 'readme',
         # 'RealTimeData/arxiv_july_week1_2023': 'text',
         # 'RealTimeData/bbc_news_week1_july_2023': 'content',
@@ -272,7 +276,7 @@ if __name__ == "__main__":
         #     'RealTimeData/News_August_2023': 'maintext',
         # })
     
-    datasets_and_texts.update(wikipedia_and_texts)
+    # datasets_and_texts.update(wikipedia_and_texts)
 
     print('=====================')
     print(f'Model: {model_name}')
