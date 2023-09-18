@@ -18,6 +18,16 @@ def beautify_text(text, num_words = 1000):
     text = ' '.join(text.split(' ')[:num_words])
     return text
 
+def verbalise_docs():
+    docs = ['data/q17-1.docx', 'data/q18-1.docx', 'data/q19-1.docx', 'data/q20-1.docx', 'data/q22-1.docx', 'data/q23-1.docx']
+    doc_text = [ getText(doc) for doc in docs ]
+
+    doc_text = [ beautify_text(doc) for doc in doc_text ]
+
+    return {
+        doc: [doc_string] for doc, doc_string in zip(docs, doc_text)
+    }
+
 if __name__ == '__main__':
     docs = ['data/q17-1.docx', 'data/q18-1.docx', 'data/q19-1.docx', 'data/q20-1.docx', 'data/q22-1.docx', 'data/q23-1.docx']
     doc_text = [ getText(doc) for doc in docs ]
