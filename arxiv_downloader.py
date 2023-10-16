@@ -214,8 +214,11 @@ if __name__ == '__main__':
         worker.daemon = True
         worker.start()
 
-    for index, result in enumerate(search.results()):
-        q.put((index, result))
+    try:
+        for index, result in enumerate(search.results()):
+            q.put((index, result))
+    except arxiv.arxiv.UnexpectedEmptyPageError:
+        print(f"Encountered an UnexpectedEmptyPageError. Continuing with the next results...")
 
     q.join()
 

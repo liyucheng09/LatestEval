@@ -138,11 +138,13 @@ class DownloadLinkFetcher:
         hash_index = link.find('#')
         if hash_index != -1:
             link = link[:hash_index]
-        if link[-1] == '/':
+        if link and link[-1] == '/':
             link = link[:-1]
         return link
 
     def _link_filter(self, link, filters):
+        if not link:
+            return False
         if not link[-1].isdigit():
             return False
         for filter_ in filters:
