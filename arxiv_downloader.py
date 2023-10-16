@@ -214,18 +214,18 @@ if __name__ == '__main__':
         worker.daemon = True
         worker.start()
 
-    try:
-        for index, result in enumerate(search.results()):
-            q.put((index, result))
-    except arxiv.arxiv.UnexpectedEmptyPageError:
-        print(f"Encountered an UnexpectedEmptyPageError. Continuing with the next results...")
+    for index, result in enumerate(search.results()):
+        q.put((index, result))
 
     q.join()
 
     files = glob(f'{text_save_dir}/*.json')
     ds = datasets.load_dataset('json', data_files=files, split='train')
 
-    create_branch('RealTimeData/arxiv_latest', branch=today.isoformat(), token=hf_token, repo_type='dataset')
+    try:
+        create_branch('RealTimeData/arxiv_latest', branch=today.isoformat(), token=hf_token, repo_type='dataset')
+    except:
+        pass
     ds.push_to_hub('RealTimeData/arxiv_latest', token=hf_token, branch=today.isoformat())
     ds.push_to_hub('RealTimeData/arxiv_latest', token=hf_token, branch='main')
 
