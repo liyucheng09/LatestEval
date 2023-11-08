@@ -8,3 +8,5 @@ data/*.json
 *.log
 *.out
 *.error
+
+wmt22-zhen/

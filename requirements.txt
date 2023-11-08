@@ -1,7 +1,6 @@
 git+https://github.com/liyucheng09/arxiv.py.git
 pylatexenc
-# datasets
-git+https://github.com/liyucheng09/datasets.git
+datasets
 bs4
 goose3
 configobj
