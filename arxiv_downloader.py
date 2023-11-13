@@ -203,7 +203,7 @@ if __name__ == '__main__':
         query=f'submittedDate:[{start_time_str} TO {end_time_str}]',
         sort_by = arxiv.SortCriterion.SubmittedDate,
         sort_order=arxiv.SortOrder.Descending,
-        max_results=2500
+        max_results=1600
     )
 
     q = Queue()
