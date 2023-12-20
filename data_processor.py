@@ -14,8 +14,15 @@ from datetime import datetime
 from tqdm import tqdm
 from dataclasses import dataclass
 
+from typing import Union, List
+
 import torch
 from transformers import LlamaForCausalLM, LlamaTokenizerFast, AutoModelForCausalLM, AutoTokenizer, OPTForCausalLM, GenerationConfig
+
+from glob import glob
+import argparse
+
+from concurrent.futures import ThreadPoolExecutor
 
 @dataclass
 class Doc:
@@ -98,6 +105,7 @@ class BaseProcessor:
     def gpt(self, prompt, num_retry = 5, model = 'gpt-4-1106-preview'):
         assert model in ['gpt-3.5-turbo', 'gpt-4-1106-preview'], "model should be either gpt-3.5-turbo or gpt-4-1106-preview"
         openai_key = os.environ.get("OPENAI_API_KEY")
+        assert openai_key is not None, "Please set OPENAI_API_KEY in your environment variables."
         for _ in range(num_retry):
             try:
                 r = openai.ChatCompletion.create(
@@ -387,6 +395,7 @@ Beware that all key points should be explicitly stated in the passage to make su
         
 For each key point, return a json dict:
 {{
+    'sentence_index': <the index of the sentence in the passage>,
     'answer_type': '<which type of key information do you think it is>',
     'key_information': <the key information extracted from the sentence. This will be used as the reference answer.>,
     'query': '<write a query that targets the key information>',
@@ -395,6 +404,7 @@ For each key point, return a json dict:
 
 Here is an example:
 {{
+    'sentence_index': <the index of sentence, for example: 3>,
     'answer_type': 'terminology',
     'key_information': 'CNN refers to convolutional neural networks proposed by ...',
     'query': 'What is CNN?', or 'What does CNN mean?', or 'Can you explain what CNN means?',
@@ -413,7 +423,7 @@ Return only the json file (dicts enclosed in square brackets) and nothing else."
 
         return prompt
 
-    def qa_pairs(self, doc: Doc):
+    def qa_pairs(self, doc: Union[Doc, List[Doc]] ):
         # the basic idea is to go through the passage sentence by sentence, and generate a json dict containing the answer, answer type, query and masked passage.
         # we start by checking the overall length of the passage. The length of the passage plus the max length of the answer generation should be less than max context window of LLM.
         # the number of max context window, and max output tokens:
@@ -430,6 +440,16 @@ Return only the json file (dicts enclosed in square brackets) and nothing else."
         prompt_len = self._num_tokens(prompt)
         response_len = self._num_tokens(response)
 
+        response = self._deal_with_json_from_llm(response)
+
+        return {
+            'id': f'{doc.source}-{doc.entry_id}',
+            'prompt_len': prompt_len,
+            'response_len': response_len,
+            'response': response,
+        }
+
+    def _deal_with_json_from_llm(self, response):
         response = response.strip('`json\n')
 
         try:
@@ -441,12 +461,7 @@ Return only the json file (dicts enclosed in square brackets) and nothing else."
             except Exception as e:
                 pass
 
-        return {
-            'id': f'{doc.source}-{doc.entry_id}',
-            'prompt_len': prompt_len,
-            'response_len': response_len,
-            'response': response,
-        }
+        return response
     
     def _fix_broken_json_from_llm(self, json_like_string):
         lines = json_like_string.strip().split('\n')
@@ -482,6 +497,11 @@ class BaseEval:
         self.source = source
         this_week_str = datetime.now().strftime("%Y-%W")
         self.time_stamp = this_week_str
+
+        self.today = datetime.today().strftime("%Y%m%d")
+
+        if not os.path.exists(f'{source}/'):
+            os.makedirs(f'{source}/')
     
     def prepare_docs(self):
         raise NotImplementedError
@@ -495,12 +515,45 @@ class BaseEval:
         #     return all_results
         
         all_results = []
+
         for doc in tqdm(self.docs, desc=f'making test set for {self.source}'):
+            if self.check_whether_alread_exist(doc.entry_id):
+                all_results.append(self.load_from_file(doc.entry_id))
+                continue
             result = processor.qa_pairs(doc)
+            result['created_at'] = self.today
+
+            self.save_to_file(result, doc.entry_id)
             all_results.append(result)
 
-        with open(f'qa_pairs_{self.source}_{self.time_stamp}.json', 'w') as file:
+        # save benchmarks to two places
+        # 1) benchmarks/latest; and 2) benchmarks/{year}-{week}
+        if not os.path.exists(f'benchmarks/latest/'):
+            os.makedirs(f'benchmarks/latest/')
+        if not os.path.exists(f'benchmarks/{self.time_stamp}/'):
+            os.makedirs(f'benchmarks/{self.time_stamp}/')
+
+        with open(f'benchmarks/latest/qa_pairs_{self.source}_{self.time_stamp}.json', 'w') as file:
             json.dump(all_results, file, indent=2, ensure_ascii=False)
+        with open(f'benchmarks/{self.time_stamp}/qa_pairs_{self.source}_{self.time_stamp}.json', 'w') as file:
+            json.dump(all_results, file, indent=2, ensure_ascii=False)
+    
+    def save_to_file(self, to_save, id):
+        # to_save should be a list of dicts, or a string
+
+        save_file_path = f'{self.source}/{id}.json'
+        with open(save_file_path, 'w') as file:
+            json.dump(to_save, file, indent=2, ensure_ascii=False)
+        
+    def check_whether_alread_exist(self, id):
+        save_file_path = f'{self.source}/{id}.json'
+        return os.path.exists(save_file_path)
+
+    def load_from_file(self, id):
+        save_file_path = f'{self.source}/{id}.json'
+        with open(save_file_path, 'r') as file:
+            data = json.load(file)
+        return data
 
 class ArxivEval(BaseEval):
     """
@@ -518,20 +571,22 @@ class ArxivEval(BaseEval):
         self.prepare_docs(num_docs = num_docs)
 
     def prepare_docs(self, num_docs):
-        self.ds = load_dataset(self.dataset_name, split=f'train[:{num_docs}]')
+        if num_docs == 'all':
+            self.ds = load_dataset(self.dataset_name, split='train')
+        else:
+            self.ds = load_dataset(self.dataset_name, split=f'train[:{num_docs}]')
 
         self.docs = []
         docs = []
         for instance in self.ds:
-            entry_id = instance['entry_id']
+            arxiv_id = instance['entry_id'].split('/')[-1]
+            entry_id = arxiv_id
             text = instance['text']
             source = self.source
 
             doc = Doc(text=text, source=source, entry_id=entry_id)
             docs.append(doc)
-        
-        print(f"Loaded {len(self.docs)} documents from {self.source} on {self.dataset_name} time slice.")
-        
+                
         def parse_arxiv(doc):
             text = doc.text
             # remove anything before introduction
@@ -564,6 +619,8 @@ class ArxivEval(BaseEval):
             doc.original_sentences = sent_tokenize(doc.original_passage)
             doc.sections = sections
             self.docs.append(doc)
+        
+        print(f"Loaded {len(self.docs)} documents from {self.source} on {self.dataset_name} time slice.")
 
     def beautify_context(self, context: str) -> str:
         context = context.replace("<cit.>", '').replace('<ref>', '')
@@ -584,12 +641,16 @@ class BBCNewsEval(BaseEval):
         self.prepare_docs(num_docs=num_docs)
 
     def prepare_docs(self, num_docs):
-        self.ds = load_dataset(self.dataset_name, split=f'train[:{num_docs}]')
+        if num_docs == 'all':
+            self.ds = load_dataset(self.dataset_name, split='train')
+        else:
+            self.ds = load_dataset(self.dataset_name, split=f'train[:{num_docs}]')
 
         self.docs = []
         docs = []
         for instance in self.ds:
-            entry_id = instance['link']
+            bbc_id = instance['link'].split('/')[-1]
+            entry_id = bbc_id
             text = instance['content']
             source = self.source
 
@@ -599,14 +660,14 @@ class BBCNewsEval(BaseEval):
             doc = Doc(text=text, source=source, entry_id=entry_id, meta_data={'title': title, 'description': description})
             docs.append(doc)
         
-        print(f"Loaded {len(self.docs)} documents from {self.source} on {self.dataset_name} time slice.")
-
         for index, doc in enumerate(docs):
             if 'live' in doc.entry_id: 
                 continue
             doc.original_passage = doc.text
             doc.original_sentences = sent_tokenize(doc.original_passage)
             self.docs.append(doc)
+        
+        print(f"Loaded {len(self.docs)} documents from {self.source} on {self.dataset_name} time slice.")
 
 class GithubEval(BaseEval):
 
@@ -620,11 +681,14 @@ class GithubEval(BaseEval):
         self.prepare_docs(num_docs=num_docs)
 
     def prepare_docs(self, num_docs):
-        self.ds = load_dataset(self.dataset_name, split=f'train[:{num_docs}]')
+        if num_docs == 'all':
+            self.ds = load_dataset(self.dataset_name, split='train')
+        else:
+            self.ds = load_dataset(self.dataset_name, split=f'train[:{num_docs}]')
 
         self.docs = []
         for instance in self.ds:
-            entry_id = instance['full_name']
+            entry_id = instance['full_name'].replace('/', ' ')
             original_sentences = self.markdown_to_plain_text(instance['readme'])
             text = '\n'.join(original_sentences)
             source = self.source
@@ -655,9 +719,82 @@ class GithubEval(BaseEval):
 
         return [line.strip() for line in text.strip().split('\n') if line.strip()]
 
-if __name__ == '__main__':
+class CustomizedEval(BaseEval):
 
-    # benchmark = ArxivEval('RealTimeData/arxiv_latest', num_docs=30)
-    benchmark = BBCNewsEval('RealTimeData/bbc_latest', num_docs=3)
-    # benchmark = GithubEval('RealTimeData/github_latest', num_docs=3)
-    benchmark.make_test_set(PureLLMProcessor('bbc', benchmark.time_stamp))
+    def __init__(self, file_path, source = 'customized', num_docs = 500):
+        """
+        Args:
+            args: the arguments
+        """
+        super().__init__(source=source)
+        self.file_path = file_path
+        self.prepare_docs(num_docs=num_docs)
+
+    def prepare_docs(self, num_docs):
+        files = glob(f'{self.file_path}/*.txt')
+
+        self.docs = []
+        docs = []
+        for instance in files[:num_docs]:
+            with open(instance, 'r') as file:
+                text = file.read()
+
+            # filename as entry_id
+            entry_id = instance.split('/')[-1].split('.')[0]
+
+            doc = Doc(text=text, source=self.source, entry_id=entry_id, meta_data=None)
+            docs.append(doc)
+        
+        print(f"Loaded {len(self.docs)} documents from {self.source} with path {self.file_path}.")
+
+        for index, doc in enumerate(docs):
+            doc.original_passage = doc.text
+            doc.original_sentences = sent_tokenize(doc.original_passage)
+            self.docs.append(doc)
+
+def process_source(source, file_path = None, num_docs = 300):
+    if source == 'customized':
+        assert file_path is not None, "Please provide the file path if the source is customized."
+        benchmark = CustomizedEval(file_path, num_docs=num_docs)
+    elif source == 'arxiv':
+        benchmark = ArxivEval('RealTimeData/arxiv_latest', num_docs=num_docs)
+    elif source == 'bbc':
+        benchmark = BBCNewsEval('RealTimeData/bbc_latest', num_docs=num_docs)
+    elif source == 'github':
+        benchmark = GithubEval('RealTimeData/github_latest', num_docs=num_docs)
+    
+    benchmark.make_test_set(PureLLMProcessor(source, benchmark.time_stamp))
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='LatestEval data processor')
+    
+    # Define the --source argument
+    parser.add_argument('--source', type=str, choices=['arxiv', 'bbc', 'github', 'customized', 'all'], required=True, 
+                        help='The source of the data. Can be "arxiv", "bbc", "github", "all", or "customized".')
+    
+    # Define the --file_path argument
+    parser.add_argument('--file_path', type=str,
+                        help='The file path, required if the source is "customized".')
+    
+    # num_docs
+    parser.add_argument('--num_docs', type=int, default=500,
+                        help='The number of documents to process.')
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # check folder existance
+    if not os.path.exists('benchmarks/'):
+        os.makedirs('benchmarks/')
+
+    # empty existing benchmarks under benchmarks/latest folder
+    if len(glob('benchmarks/latest/*.json')) > 0:
+        os.system('rm benchmarks/latest/*.json')
+
+    # use multi-threading to accelerate if source == 'all'
+    if args.source != 'all':
+        process_source(args.source, file_path=args.file_path, num_docs=args.num_docs)
+    else:
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            for source in ['arxiv', 'bbc', 'github']:
+                executor.submit(process_source, source, num_docs=args.num_docs)

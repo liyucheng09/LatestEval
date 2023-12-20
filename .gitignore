@@ -10,3 +10,6 @@ data/*.json
 *.error
 
 wmt22-zhen/
+arxiv/
+bbc/
+github/
