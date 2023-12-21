@@ -121,6 +121,17 @@ ds = datasets.load_dataset('RealTimeData/wikitext_alltime', '2017-8')
 ```
 
 The time stamp follows the format of "YYYY-MM".
+
+# An example
+
+```
+> ds = datasets.load_dataset('RealTimeData/wikitext_alltime', '2023-10', split='train')
+> ds[0]
+
+{'title': 'Queen Victoria',
+ 'pageid': 47923,
+ 'text': 'Victoria (Alexa ...',
+ 'time': '2023-10'}
 ```
 """
     card = RepoCard(text)

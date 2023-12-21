@@ -41,6 +41,7 @@ class Wikitext_alltimes(datasets.GeneratorBasedBuilder):
                 "title": datasets.Value("string"),
                 "pageid": datasets.Value("int64"),
                 "text": datasets.Value("string"),
+                "time": datasets.Value("string"),
             }
         )
         return datasets.DatasetInfo(
@@ -54,7 +55,7 @@ class Wikitext_alltimes(datasets.GeneratorBasedBuilder):
         """Returns SplitGenerators."""
         if self.config.name == "all":
             times = _TIMES[:-1]
-            files = dl_manager.download([f"articles/{time}.json" for time in _TIMES ])
+            files = dl_manager.download([f"wiki/{time}.json" for time in _TIMES ])
             return [
                 datasets.SplitGenerator(
                     name=datasets.Split.TRAIN,
@@ -63,7 +64,7 @@ class Wikitext_alltimes(datasets.GeneratorBasedBuilder):
             ]
         else:
             time = self.config.name
-            _URL = f"articles/{time}.json"
+            _URL = f"wiki/{time}.json"
             file = dl_manager.download(_URL)
             return [
                 datasets.SplitGenerator(
