@@ -138,11 +138,13 @@ class DownloadLinkFetcher:
         hash_index = link.find('#')
         if hash_index != -1:
             link = link[:hash_index]
-        if link[-1] == '/':
+        if link and link[-1] == '/':
             link = link[:-1]
         return link
 
     def _link_filter(self, link, filters):
+        if not link:
+            return False
         if not link[-1].isdigit():
             return False
         for filter_ in filters:
@@ -311,7 +313,10 @@ class ArticleFetcher:
 
                 article = self._extract_information(link, date)
                 if article is not None:
-                    titles.append(article['title'] + '\n')
+                    if article['title'] is not None:
+                        titles.append(article['title'] + '\n')
+                    else:
+                        titles.append('No Title\n')
                     articles.append(article)
 
             articles_path = os.path.join(storage_path, f'articles.{current_date}')
@@ -539,21 +544,29 @@ class BBCArticleFetcher(ArticleFetcher):
         }
 
 if __name__ == '__main__':
-    import sys
+    import sys, os
 
-    month, = sys.argv[1:]
-    month = int(month) + 1
+    year, month, save_path, = sys.argv[1:]
+    print(year, month, save_path)
+
+    month = int(month)%12 + 1
+    year = int(year)
 
     if month < 10:
         month = '0' + str(month)
 
-    start_str = f'2017-{month}-01'
-    end_str = f'2017-{month}-28'
+    start_str = f'{year}-{month}-01'
+    end_str = f'{year}-{month}-28'
+
+    print(start_str, end_str)
+
+    start_date = datetime.datetime.strptime(start_str, '%Y-%m-%d')
+    end_date = datetime.datetime.strptime(end_str, '%Y-%m-%d')
 
     config = DatasetConfiguration()
-    config.start_date = start_str
-    config.end_date = end_str
-    config.path = 'dataset/bbc'
+    config.start_date = start_date
+    config.end_date = end_date
+    config.path = save_path
 
     bbc_article_fetcher = BBCArticleFetcher(config)
     bbc_article_fetcher.fetch()

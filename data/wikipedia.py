@@ -7,11 +7,12 @@ import sys
 import torch
 from tqdm import tqdm
 import traceback
-# from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 import datasets
 import numpy as np
 import time
 import openai
+from doc_info import verbalise_docs
 
 WIKI_API_ENDPOINT = "https://en.wikipedia.org/w/api.php"
 
@@ -245,18 +246,20 @@ if __name__ == "__main__":
         'wiki_recent': recent_snippets,
         'wiki_historical': historical_snippets
     }
-    datasets_and_texts = prepare_comparing_data({
+    # datasets_and_texts = prepare_comparing_data({
         # 'liyucheng/trivia_qa_wiki_val': 'wiki_context_sample'
-        'RealTimeData/bbc_latest': 'content',
-        'RealTimeData/bbc_2017': 'content',
-        'iohadrubin/mini_xsum': 'document'
+        # 'RealTimeData/bbc_latest': 'content',
+        # 'RealTimeData/bbc_2017': 'content',
+        # 'iohadrubin/mini_xsum': 'document'
         # 'quac': 'context',
         # 'boolq': 'passage',
         # 'squad_v2': 'context',
         # 'RealTimeData/github_july_week1_2023': 'readme',
         # 'RealTimeData/arxiv_july_week1_2023': 'text',
         # 'RealTimeData/bbc_news_week1_july_2023': 'content',
-    }, token_count=token_count, num_samples=120)
+    # }, token_count=token_count, num_samples=120)
+    datasets_and_texts = verbalise_docs(num_words=token_count)
+
     if 'GPTQ' in model_name:
         # only llama-30b use gptq
         model = AutoGPTQForCausalLM.from_quantized(model_name, device = 'cuda:0', use_safetensors = True, disable_exllama=True if '30b' in model_name else False)

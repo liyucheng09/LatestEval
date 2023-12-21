@@ -1,6 +1,6 @@
 import docx
 import re
-from wikipedia import gpt3_self_info
+# from wikipedia import gpt3_self_info
 import sys
 
 def getText(filename):
@@ -18,11 +18,12 @@ def beautify_text(text, num_words = 1000):
     text = ' '.join(text.split(' ')[:num_words])
     return text
 
-def verbalise_docs():
-    docs = ['data/q17-1.docx', 'data/q18-1.docx', 'data/q19-1.docx', 'data/q20-1.docx', 'data/q22-1.docx', 'data/q23-1.docx']
+def verbalise_docs(path = '/user/HS502/yl02706/LatestEval/data/mmlu', num_words = 1000):
+    docs = ['q17-1.docx', 'q18-1.docx', 'q19-1.docx', 'q20-1.docx', 'q22-1.docx', 'q23-1.docx']
+    docs = [ path + '/' + doc for doc in docs ]
     doc_text = [ getText(doc) for doc in docs ]
 
-    doc_text = [ beautify_text(doc) for doc in doc_text ]
+    doc_text = [ beautify_text(doc, num_words=num_words) for doc in doc_text ]
 
     return {
         doc: [doc_string] for doc, doc_string in zip(docs, doc_text)
