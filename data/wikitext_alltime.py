@@ -7,6 +7,8 @@ configs_file = dl.download('https://huggingface.co/datasets/RealTimeData/wikitex
 with open(configs_file, encoding="utf-8") as f:
     _TIMES = f.read().splitlines()
 
+_TIMES += ['all']
+
 _CITATION = """\
 @misc{li2023estimating,
       title={Estimating Contamination via Perplexity: Quantifying Memorisation in Language Model Evaluation}, 
@@ -19,7 +21,7 @@ _CITATION = """\
 """
 
 _DESCRIPTION = """\
-This dataset contains Wikipedia articles of 419 selected pages from 2017 to 2022. The articles are arraged by month. Access the specific month by using the format "YYYY-MM" as config. Such as load_dataset("RealTimeData/wikitext_alltime", "2021-1").
+This dataset contains Wikipedia articles of 419 selected pages every month from 2017-1 to current. The articles are arraged by month. Access the specific month by using the format "YYYY-MM" as config. Such as load_dataset("RealTimeData/wikitext_alltime", "2021-1").
 """
 
 _HOMEPAGE = "https://github.com/liyucheng09/Contamination_Detector"

@@ -19,7 +19,7 @@ _CITATION = """\
 """
 
 _DESCRIPTION = """\
-This dataset contains BBC News articles from 2017 to 2022. The articles are arraged by month. Access the specific month by using the format "YYYY-MM" as config. Such as load_dataset("RealTimeData/bbc_alltime", "2021-1").
+This dataset contains BBC News articles for every month from 2017-1 to current. Access a specific month by using the format "YYYY-MM" as config. Such as load_dataset("RealTimeData/bbc_alltime", "2021-1").
 """
 
 _HOMEPAGE = "https://github.com/liyucheng09/Contamination_Detector"
