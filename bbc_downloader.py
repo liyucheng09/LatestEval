@@ -209,9 +209,10 @@ class BBCLinkFetcher(DownloadLinkFetcher):
         elements = soup.table.find_all('a')
         # elements = soup.table.find_all('a', class_='title-link')
         for element in elements:
-            if not element['href']:
+            href = element.get('href')
+            if not href:
                 continue
-            link = self._format_link(element['href'])
+            link = self._format_link(href)
             if self._link_filter(link, self.BBC_FILTERS):
                 links.append(link)
 

@@ -209,9 +209,10 @@ class BBCLinkFetcher(DownloadLinkFetcher):
         elements = soup.table.find_all('a')
         # elements = soup.table.find_all('a', class_='title-link')
         for element in elements:
-            if not element['href']:
+            href = element.get('href')
+            if not href:
                 continue
-            link = self._format_link(element['href'])
+            link = self._format_link(href)
             if self._link_filter(link, self.BBC_FILTERS):
                 links.append(link)
 
@@ -513,11 +514,13 @@ class BBCArticleFetcher(ArticleFetcher):
     def _extract_content(self, html):
         ContentExtractor.calculate_best_node = calculate_best_node
         ContentExtractor.post_cleanup = post_cleanup
-        g = Goose({'enable_image_fetching': False})
+        # g = Goose()
+        # g = Goose({'enable_image_fetching': False})
+        g = Goose({'enable_image_fetching': True})
         article = g.extract(raw_html=html)
         ContentExtractor.calculate_best_node = f1
         ContentExtractor.post_cleanup = f2
-        return article.cleaned_text
+        return article.cleaned_text, article.top_image.src
 
     def _html_to_infomation(self, html, link, date):
         soup = BeautifulSoup(html, 'lxml')
@@ -529,7 +532,7 @@ class BBCArticleFetcher(ArticleFetcher):
             authors = self._extract_authors(head)
             description = self._extract_description(head)
             section = self._extract_section(head)
-            content = self._extract_content(html)
+            content, top_image = self._extract_content(html)
         except Exception:
             return None
 
@@ -540,17 +543,27 @@ class BBCArticleFetcher(ArticleFetcher):
             'description': description,
             'section': section,
             'content': content,
-            'link': link
+            'link': link,
+            'top_image': top_image
         }
 
 if __name__ == '__main__':
     import sys, os
+    from glob import glob
+    import datasets
+    import random
+    import time
+
+    hf_token = os.environ['HF_TOKEN']
+    assert hf_token is not None
 
     year, month, save_path, = sys.argv[1:]
-    print(year, month, save_path)
 
     month = int(month)%12 + 1
     year = int(year)
+    save_path = os.path.join(save_path, str(year), str(month))
+
+    print(year, month, save_path)
 
     if month < 10:
         month = '0' + str(month)
@@ -558,7 +571,50 @@ if __name__ == '__main__':
     start_str = f'{year}-{month}-01'
     end_str = f'{year}-{month}-28'
 
+    time_stamp = f'{year}-{month}'
+
     print(start_str, end_str)
+
+    existing_time_stamps = ['2017-01', '2017-02', '2017-03', '2017-04', '2017-05', '2017-06', '2017-07', '2017-08', '2017-09', '2017-10', '2017-11', '2017-12', '2018-01', '2018-02', '2018-03', '2018-04', '2018-05', '2018-06', '2018-07', '2018-08', '2018-09', '2018-10', '2018-11', '2018-12', '2019-01', '2019-02', '2019-03', '2019-04', '2019-05', '2019-06', '2019-07', '2019-08', '2019-09', '2019-10', '2019-11', '2019-12', '2020-01', '2020-02', '2020-03', '2020-04', '2020-05', '2020-06', '2020-07', '2020-08', '2020-09', '2020-10', '2020-11', '2020-12', '2021-01', '2021-02', '2021-03', '2021-04', '2021-05', '2021-06', '2021-07', '2021-08', '2021-09', '2021-10', '2021-11', '2021-12', '2022-01', '2022-02', '2022-03', '2022-04', '2022-06', '2022-07', '2022-08', '2022-11', '2022-12', '2023-01', '2023-02', '2023-03', '2023-04', '2023-06', '2023-07', '2023-08', '2023-11', '2023-12']
+    if time_stamp in existing_time_stamps:
+        print('Already pushed')
+        exit()
+
+    # check whether all articles are already there
+    if os.path.isdir(save_path) and False:
+        article_files = glob(os.path.join(save_path, 'articles.*'))
+        if len(article_files) >= 27:
+            print('Already fetched')
+            
+            all_articles = []
+            for article_file in article_files:
+                with open(article_file, 'r') as f:
+                    articles = json.load(f)['articles']
+
+                    for article in articles:
+                        article['authors'] = article['authors'][0] if article['authors'] else None
+                        all_articles.append(article)
+
+            # turn list of dicts to dict of lists
+            ds = datasets.Dataset.from_list(all_articles)
+
+            for i in range(5):
+                try:
+                    ds.push_to_hub(
+                        'RealTimeData/bbc_news_alltime',
+                        config_name=time_stamp,
+                        token=hf_token
+                    )
+                except:
+                    print('Failed, retrying')
+                    time.sleep(random.randint(0, 40))
+                    continue
+                break
+
+            exit()
+        else:
+            print('Not enough articles, deleting folder')
+            os.system(f'rm -r {save_path}')
 
     start_date = datetime.datetime.strptime(start_str, '%Y-%m-%d')
     end_date = datetime.datetime.strptime(end_str, '%Y-%m-%d')
@@ -570,3 +626,21 @@ if __name__ == '__main__':
 
     bbc_article_fetcher = BBCArticleFetcher(config)
     bbc_article_fetcher.fetch()
+
+    print('Fetching Finished')
+
+    article_files = glob(os.path.join(save_path, 'articles.*'))
+
+    all_articles = []
+    for article_file in article_files:
+        with open(article_file, 'r') as f:
+            articles = json.load(f)['articles']
+            all_articles.extend(articles)
+
+    # turn list of dicts to dict of lists
+    ds = datasets.Dataset.from_list(all_articles)
+    ds.push_to_hub(
+        'RealTimeData/bbc_news_alltime',
+        config_name=time_stamp,
+        token=hf_token
+    )
