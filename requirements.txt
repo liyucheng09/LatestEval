@@ -1,4 +1,4 @@
-git+https://github.com/liyucheng09/arxiv.py.git
+arxiv
 pylatexenc
 datasets
 bs4
