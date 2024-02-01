@@ -8,6 +8,9 @@ from glob import glob
 import datasets
 import time
 import random
+import soundfile as sf
+import struct
+import numpy as np
 
 def get_popular_videos(youtube, start_date, end_date, max_results=30):
     published_after = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -72,12 +75,12 @@ if __name__ == '__main__':
     month, save_path, = sys.argv[1:]
     month = int(month) + 1
 
-    videos_per_month = 5
+    videos_per_month = 3
     api_key = os.environ['YOUTUBE_API_KEY']
     youtube = build('youtube', 'v3', developerKey=api_key)
 
-    time_stamps = [f'{year}-{month:02d}' for year in range(2020, 2024)]
-    # time_stamps = [f'{year}-{month:02d}' for year in range(2020, 2024) for month in range(1, 13)]
+    # time_stamps = [f'{year}-{month:02d}' for year in range(2017, 2024)]
+    time_stamps = [f'{year}-{month:02d}' for year in range(2017, 2024) for month in range(1, 13)]
 
     for time_stamp in time_stamps:
         files = glob(os.path.join(save_path, time_stamp, '*.flac'))
@@ -99,15 +102,23 @@ if __name__ == '__main__':
         files = glob(os.path.join(save_path, time_stamp, '*.flac'))
         random.shuffle(files)
         files = files[:videos_per_month]
-        ds = datasets.Dataset.from_dict({
-            'audio': files,
-            'name': files,
-            'time': [time_stamp] * len(files),
-        }).cast_column('audio', datasets.Audio())
+        instances = []
+        for file in files:
+            data, samplerate = sf.read(file)
+            if len(data.shape) > 1:
+                data = data.mean(axis=1)
+            denormalized_data = np.int16(data * 32767)
+            byte_stream = b''.join(struct.pack('<h', sample) for sample in denormalized_data)
+            instances.append(
+                {
+                    'audio': byte_stream,
+                    'name': file,
+                    'time': time_stamp,
+                    'sampling_rate': samplerate,
+                }
+            )
 
-        try:
-            ds.push_to_hub('RealTimeData/audio_alltime', config_name=time_stamp, token=os.environ['HF_TOKEN'])
-        except:
-            print(f"Failed to push {time_stamp}")
+        ds = datasets.Dataset.from_list(instances)
 
+        ds.push_to_hub('RealTimeData/audio_alltime', config_name=time_stamp, token=os.environ['HF_TOKEN'])
         print(f"Finished {time_stamp}.")
