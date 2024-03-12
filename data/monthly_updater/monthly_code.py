@@ -8,14 +8,14 @@ import json
 import itertools
 import shutil
 
-def clone_repo(repo_url, local_path, overwrite=False):
+def clone_repo(repo_url, local_path, overwrite=False, since=None):
     if os.path.exists(local_path):
         if overwrite:
             shutil.rmtree(local_path)
         else:
             print(f"Repo {local_path} already exists")
             return
-    Repo.clone_from(repo_url, local_path)
+    Repo.clone_from(repo_url, local_path, multi_options=[f'--shallow-since={since}'] if since is not None else None)
 
 def get_file_content(commit, file_path):
     # Retrieves the file content for a given commit
@@ -109,7 +109,6 @@ def get_monthly_diff_file_objects(local_path, start_date, end_date, code_extensi
     return ranked_files
 
 def main(time_stamp, local_repo, save_path):
-    # try:
     year, month = time_stamp.split('-')
     first_day = datetime.date(int(year), int(month), 1)
     last_day = datetime.date(int(year), int(month), 28)
@@ -127,15 +126,24 @@ def main(time_stamp, local_repo, save_path):
         with open(save_file_path, 'w') as f:
             json.dump(file, f, ensure_ascii=False, indent=2)
     return (time_stamp, repo_name, len(ranked_files))
+    # print(f"Saved to {save_path}")
 
 if __name__ == '__main__':
-    repo_path, save_dir, = sys.argv[1:]
+    today = datetime.date.today()
+    year = today.year
+    month = today.month
 
-    time_stamps = [f'{year}-{month:02d}' for year in range(2017, 2024) for month in range(1, 13)]
-    time_stamps += [f'2024-{month:02d}' for month in range(1, 3)]
+    time_stamp = f'{year}-{month:02d}'
+    first_day_string = f'{year}-{month:02d}-01'
+
+    repo_path, save_dir = './repos/', './code_data/'
+    repo_list = './data/code_repos.txt'
+
+    # time_stamps = [f'{year}-{month:02d}' for year in range(2017, 2024) for month in range(1, 13)]
+    time_stamps = [time_stamp]
 
     # pre_defined repos
-    with open('/user/HS502/yl02706/LatestEval/data/code_repos.txt', 'r') as f:
+    with open(repo_list, 'r') as f:
         repos = f.readlines()
     
     print(f"Total {len(repos)} repos")
@@ -145,8 +153,9 @@ if __name__ == '__main__':
     local_paths = [os.path.join(repo_path, repo.replace('/', '_')).strip() for repo in repos]
 
     # clone repos
+    args = [(url, path, True, first_day_string) for url, path in zip(urls, local_paths)]
     with multiprocessing.Pool(2) as pool:
-        pool.starmap(clone_repo, zip(urls, local_paths))
+        pool.starmap(clone_repo, args)
     
     code_extensions = {'.py', '.js', '.java', '.cpp', '.c', '.cs', '.go', '.rb', '.php', '.ts', '.jsx', '.tsx', '.css', '.sh', '.pl', '.bat'}
     
@@ -155,12 +164,7 @@ if __name__ == '__main__':
     flattened_args = [(time_stamp, local_path, save_dir) for time_stamp, local_path in combinations]
 
     print(f"Total {len(flattened_args)} combinations")
-    with multiprocessing.Pool(8) as pool:
+    with multiprocessing.Pool(2) as pool:
         ALL_PROCESSED = pool.starmap(main, flattened_args)
-
-    # use single process instead
-    # ALL_PROCESSED = []
-    # for args in flattened_args:
-    #     ALL_PROCESSED.append(main(*args))
     
     print(f"Total {len(ALL_PROCESSED)} processed")
