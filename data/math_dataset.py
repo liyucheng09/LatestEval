@@ -106,8 +106,8 @@ if __name__ == '__main__':
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    time_stampes = [f'{year}-{month:02d}' for year in range(2017, 2024) for month in range(1, 13)]
-    # time_stampes = [f'{year}-{month:02d}' for year in range(2017, 2024)]
+    # time_stampes = [f'{year}-{month:02d}' for year in range(2017, 2024) for month in range(1, 13)]
+    time_stampes = [f'2024-{month:02d}' for month in range(1,3)]
 
     # Example usage
     sites = ["math", "mathoverflow"]

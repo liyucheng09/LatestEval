@@ -53,7 +53,7 @@ def fetch_content(title, date=None):
             "title": page['title'],
             "text": text,
             "pageid": page['pageid'],
-        }
+        }, content
 
     except Exception as e:
         print(f"An error occurred while fetching content for {title}: {str(e)}")
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     with open('/user/HS502/yl02706/LatestEval/data/squad_wiki_title.text') as f:
         titles = [line.strip() for line in f.readlines()]
     historical_contents = [fetch_content(title, end_time) for title in tqdm(titles)]
-    historical_contents = [content for content in historical_contents if content is not None]
+    historical_contents = [content[0] for content in historical_contents if content is not None]
     historical_to_save = {title: content for title, content in zip(titles, historical_contents)}
 
     save_file = os.path.join(save_path, f'{year}-{month}.json')
