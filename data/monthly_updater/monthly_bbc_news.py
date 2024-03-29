@@ -20,10 +20,10 @@ def download_image(url, save_path, headers, max_retries=5):
             response = requests.get(url, headers=headers)
             if response.status_code == 200:
                 extension = guess_extension(response.headers['content-type']) or '.jpg'
-                save_path = os.path.join(save_path, f"{i}{extension}")
-                with open(save_path, 'wb') as f:
+                file_path = os.path.join(save_path, f"{i}{extension}")
+                with open(file_path, 'wb') as f:
                     f.write(response.content)
-                return save_path
+                return file_path
             else:
                 retries += 1
                 sleep(1)  # Wait for 1 second before retrying
@@ -164,7 +164,6 @@ class DownloadLinkFetcher:
         self.html_fetcher = NetworkFetcher()
 
     def _format_link(self, link):
-        print(link)
         hash_index = link.find('#')
         if hash_index != -1:
             link = link[:hash_index]
@@ -633,6 +632,8 @@ if __name__ == '__main__':
     article_links = ds['link']
     titles = ds['title']
     save_path = './bbc_images'
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
 
     all_images = []
     links_and_files = []

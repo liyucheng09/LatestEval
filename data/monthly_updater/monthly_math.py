@@ -103,7 +103,7 @@ def fetch_questions_within_period(site, time_stamp, max_items=100):
 if __name__ == '__main__':
     hf_token = os.environ['HF_TOKEN']
 
-    today = datetime.date.today()
+    today = datetime.today()
     year = today.year
     month = today.month
     time_stamp = f'{year}-{month:02d}'
