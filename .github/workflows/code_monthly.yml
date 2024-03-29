@@ -1,0 +1,36 @@
+name: Monthly Updater
+
+on:
+    schedule:
+      # This cron job initiates the action at 00:00 on the 28th of every month
+      - cron: '0 0 28 * *'
+    
+    workflow_dispatch:
+
+jobs:
+  
+  code_downloader:
+    runs-on: ubuntu-latest
+
+    # Define environment variables for all steps in this job
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      Github_Token: ${{ secrets.gh_token }}
+      Overflow_Token: ${{ secrets.overflow_token }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'  # Choose your desired Python version
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run script
+      run: python data/monthly_updater/monthly_code.py
