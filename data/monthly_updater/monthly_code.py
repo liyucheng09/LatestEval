@@ -136,8 +136,8 @@ if __name__ == '__main__':
     time_stamp = f'{year}-{month:02d}'
     first_day_string = f'{year}-{month:02d}-01'
 
-    repo_path, save_dir = './repos/', './code_data/'
-    repo_list = './data/code_repos.txt'
+    repo_path, save_dir = 'repos/', 'code_data/'
+    repo_list = 'data/code_repos.txt'
 
     # time_stamps = [f'{year}-{month:02d}' for year in range(2017, 2024) for month in range(1, 13)]
     time_stamps = [time_stamp]

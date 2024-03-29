@@ -153,5 +153,5 @@ if __name__ == '__main__':
 
         all_instances.append(instance)
 
-    dataset = datasets.Dataset.from_list(all_instances)
-    datasets.push_to_hub('RealTimeData/math_alltime', time_stamp, token=hf_token)
+    ds = datasets.Dataset.from_list(all_instances)
+    ds.push_to_hub('RealTimeData/math_alltime', time_stamp, token=hf_token)
