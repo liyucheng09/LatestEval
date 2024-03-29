@@ -153,15 +153,17 @@ if __name__ == '__main__':
     local_paths = [os.path.join(repo_path, repo.replace('/', '_')).strip() for repo in repos]
 
     # clone repos
-    args = [(url, path, True, first_day_string) for url, path in zip(urls, local_paths)]
-    for arg in args:
-        clone_repo(*arg)
-    # with multiprocessing.Pool(2) as pool:
-    #     pool.starmap(clone_repo, args)
+    sucess_paths = []
+    for url, local_path in zip(urls, local_paths):
+        try:
+            clone_repo(url, local_path, overwrite=True, since=first_day_string)
+            sucess_paths.append(local_path)
+        except:
+            print(f"Failed to clone {url}")
     
     code_extensions = {'.py', '.js', '.java', '.cpp', '.c', '.cs', '.go', '.rb', '.php', '.ts', '.jsx', '.tsx', '.css', '.sh', '.pl', '.bat'}
     
-    combinations = list(itertools.product(time_stamps, local_paths))
+    combinations = list(itertools.product(time_stamps, sucess_paths))
     # combinations = sorted(combinations, key=lambda x: x[-1])
     flattened_args = [(time_stamp, local_path, save_dir) for time_stamp, local_path in combinations]
 
