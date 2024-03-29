@@ -93,7 +93,7 @@ jobs:
     env:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       Github_Token: ${{ secrets.gh_token }}
-      Overflow_Token: ${{ secrets.overflow_token }}
+      Overflow_API_KEY: ${{ secrets.overflow_token }}
 
     steps:
     - name: Checkout repository

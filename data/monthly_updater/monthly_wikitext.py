@@ -63,7 +63,7 @@ def fetch_content(title, date=None):
     return None
 
 if __name__ == "__main__":
-    today = datetime.date.today()
+    today = datetime.datetime.today()
     year = today.year
     month = today.month
 
@@ -115,11 +115,6 @@ The time stamp follows the format of "YYYY-MM".
 ```
 > ds = datasets.load_dataset('RealTimeData/wikitext_alltime', '2023-10', split='train')
 > ds[0]
-
-{'title': 'Queen Victoria',
- 'pageid': 47923,
- 'text': 'Victoria (Alexa ...',
- 'time': '2023-10'}
 ```
 """
     card = RepoCard(text)

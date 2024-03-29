@@ -239,9 +239,10 @@ class BBCLinkFetcher(DownloadLinkFetcher):
         elements = soup.table.find_all('a')
         # elements = soup.table.find_all('a', class_='title-link')
         for element in elements:
-            if not element['href']:
+            href = element.get('href')
+            if not href:
                 continue
-            link = self._format_link(element['href'])
+            link = self._format_link(href)
             if self._link_filter(link, self.BBC_FILTERS):
                 links.append(link)
 
@@ -343,7 +344,10 @@ class ArticleFetcher:
 
                 article = self._extract_information(link, date)
                 if article is not None:
-                    titles.append(article['title'] + '\n')
+                    if article['title'] is not None:
+                        titles.append(article['title'] + '\n')
+                    else:
+                        titles.append('No Title\n')
                     articles.append(article)
 
             articles_path = os.path.join(storage_path, f'articles.{current_date}')
@@ -540,11 +544,13 @@ class BBCArticleFetcher(ArticleFetcher):
     def _extract_content(self, html):
         ContentExtractor.calculate_best_node = calculate_best_node
         ContentExtractor.post_cleanup = post_cleanup
-        g = Goose({'enable_image_fetching': False})
+        # g = Goose()
+        # g = Goose({'enable_image_fetching': False})
+        g = Goose({'enable_image_fetching': True})
         article = g.extract(raw_html=html)
         ContentExtractor.calculate_best_node = f1
         ContentExtractor.post_cleanup = f2
-        return article.cleaned_text
+        return article.cleaned_text, article.top_image.src
 
     def _html_to_infomation(self, html, link, date):
         soup = BeautifulSoup(html, 'lxml')
@@ -556,7 +562,7 @@ class BBCArticleFetcher(ArticleFetcher):
             authors = self._extract_authors(head)
             description = self._extract_description(head)
             section = self._extract_section(head)
-            content = self._extract_content(html)
+            content, top_image = self._extract_content(html)
         except Exception:
             return None
 
@@ -567,7 +573,8 @@ class BBCArticleFetcher(ArticleFetcher):
             'description': description,
             'section': section,
             'content': content,
-            'link': link
+            'link': link,
+            'top_image': top_image
         }
 
 if __name__ == '__main__':
@@ -675,14 +682,6 @@ The time stamp follows the format of "YYYY-MM".
 ```
 > ds = datasets.load_dataset('RealTimeData/bbc_alltime', '2023-10', split='train')
 > ds[0]
-
-{'title': 'Israeli Arabs arrested over Gaza social media posts - BBC News',
- 'published_date': '2023-10-21',
- 'authors': "['https://www.facebook.com/bbcnews']",
- 'description': 'Influencer Dalal Abu Amneh is among those to be held in a crackdown on Gaza-linked content.',
- 'section': 'Middle East',
- 'content': 'Dozens of Arab citizens of Israel ...",
- 'link': 'http://www.bbc.co.uk/news/world-middle-east-67181582'}
 ```
 
 """
