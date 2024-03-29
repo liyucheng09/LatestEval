@@ -154,8 +154,10 @@ if __name__ == '__main__':
 
     # clone repos
     args = [(url, path, True, first_day_string) for url, path in zip(urls, local_paths)]
-    with multiprocessing.Pool(2) as pool:
-        pool.starmap(clone_repo, args)
+    for arg in args:
+        clone_repo(*arg)
+    # with multiprocessing.Pool(2) as pool:
+    #     pool.starmap(clone_repo, args)
     
     code_extensions = {'.py', '.js', '.java', '.cpp', '.c', '.cs', '.go', '.rb', '.php', '.ts', '.jsx', '.tsx', '.css', '.sh', '.pl', '.bat'}
     
