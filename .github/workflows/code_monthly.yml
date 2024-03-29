@@ -1,4 +1,4 @@
-name: Monthly Updater
+name: Code Monthly Updater
 
 on:
     schedule:
