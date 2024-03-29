@@ -7,6 +7,8 @@ import difflib
 import json
 import itertools
 import shutil
+from glob import glob
+import datasets
 
 def clone_repo(repo_url, local_path, overwrite=False, since=None):
     if os.path.exists(local_path):
@@ -172,3 +174,15 @@ if __name__ == '__main__':
         ALL_PROCESSED = pool.starmap(main, flattened_args)
     
     print(f"Total {len(ALL_PROCESSED)} processed")
+
+    hf_token = os.environ['HF_TOKEN']
+    code_files = glob(f'{save_dir}/{time_stamp}/*/*.json')
+    all_codes = []
+    for code in code_files:
+        with open(code, 'r') as f:
+            all_codes.append(json.load(f))
+    ds = datasets.Dataset.from_list(all_codes)
+    print('='*20)
+    print(f'Finished {time_stamp}')
+    ds.push_to_hub(f'RealTimeData/code_alltime', config_name = time_stamp, token=hf_token)
+    print(f'Pushed {time_stamp} to hub')
