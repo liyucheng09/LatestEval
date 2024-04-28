@@ -97,25 +97,3 @@ if __name__ == "__main__":
     
     ds = datasets.Dataset.from_list(all_articles)
     ds.push_to_hub(f"RealTimeData/wikitext_alltime", config_name=f'{year}-{month:02d}', token=hf_token)
-
-    text = f"""
-# Wikitext for All Times
-
-You could find 491 selected wiki articles every month from 2017-01 to {year}-{month:02d}.
-
-Use this to download wiki articles during a specific month:
-```
-ds = datasets.load_dataset('RealTimeData/wikitext_alltime', '2017-08')
-```
-
-The time stamp follows the format of "YYYY-MM".
-
-# An example
-
-```
-> ds = datasets.load_dataset('RealTimeData/wikitext_alltime', '2023-10', split='train')
-> ds[0]
-```
-"""
-    card = RepoCard(text)
-    card.push_to_hub('RealTimeData/wikitext_alltime', repo_type='dataset', token=hf_token)

@@ -663,28 +663,3 @@ if __name__ == '__main__':
     ds = datasets.Dataset.from_list(all_images)
     ds.push_to_hub(f"RealTimeData/bbc_images_alltime", config_name=time_stamp, token=hf_token)
     print(f"{time_stamp} done")
-
-    from huggingface_hub import hf_hub_download, RepoCard, upload_file
-
-    text = f"""
-# BBC for All Times
-
-You could find BBC News articles every month from 2017-1 to {year_str}-{month_str}.
-
-Use this to download BBC News articles during a specific month:
-```
-ds = datasets.load_dataset('RealTimeData/bbc_news_alltime', '2017-08')
-```
-
-The time stamp follows the format of "YYYY-MM".
-
-# An example
-
-```
-> ds = datasets.load_dataset('RealTimeData/bbc_alltime', '2023-10', split='train')
-> ds[0]
-```
-
-"""
-    card = RepoCard(text)
-    card.push_to_hub('RealTimeData/bbc_news_alltime', repo_type='dataset', token=hf_token)
