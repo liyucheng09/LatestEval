@@ -42,6 +42,15 @@ class TextExtractor:
 
     def __init__(self):
         self.l2t_context_db = latex2text.get_default_latex_context_db()
+        self.l2t_context_db.add_context_category(
+            'Abstract',
+            macros={},
+            environments=[
+                latex2text.EnvironmentTextSpec("abstract", simplify_repl=r'§ ABSTRACT %(body)s'),
+                latex2text.EnvironmentTextSpec("Abstract", simplify_repl=r'§ ABSTRACT %(body)s')
+            ],
+            specials={}
+        )
         self.l2t_context_db = filter_element(self.l2t_context_db, ['href'])
 
         self.l2t = latex2text.LatexNodes2Text(latex_context=self.l2t_context_db)
