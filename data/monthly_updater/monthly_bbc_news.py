@@ -1,5 +1,6 @@
 import weakref
 import requests
+import re
 
 from configobj import ConfigObj
 
@@ -174,7 +175,10 @@ class DownloadLinkFetcher:
     def _link_filter(self, link, filters):
         if not link:
             return False
-        if not link[-1].isdigit():
+        # if not link[-1].isdigit():
+        #     return False
+        # Filter out links that match the pattern 'hours.minutes.html'
+        if re.match(r'\d{2}\.\d{2}\.html$', link):
             return False
         for filter_ in filters:
             if link[filter_[1]:filter_[2]] == filter_[0]:
