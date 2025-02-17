@@ -73,7 +73,7 @@ def get_monthly_diff_file_objects(local_path, start_date, end_date, code_extensi
     file_changes = []
 
     try:
-        start_commit = next(repo.iter_commits(until=start_date))
+        start_commit = next(repo.iter_commits(since=start_date, reverse=True))
         end_commit = next(repo.iter_commits(until=end_date))
     except StopIteration:
         print(f"Repo {local_path} has no commits in {start_date} - {end_date}")
